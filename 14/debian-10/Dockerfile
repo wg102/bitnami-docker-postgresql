@@ -42,14 +42,17 @@ VOLUME [ "/bitnami/postgresql", "/docker-entrypoint-initdb.d", "/docker-entrypoi
 EXPOSE 5432
 
 # https://github.com/bitsondatadev/hive-metastore/blob/master/Dockerfile
+# WORKDIR /opt
+# https://github.com/bitsondatadev/hive-metastore/blob/master/Dockerfile
 RUN mkdir -p ${HIVE_HOME}/lib/
 RUN curl -L https://downloads.apache.org/hive/hive-standalone-metastore-3.0.0/hive-standalone-metastore-3.0.0-bin.tar.gz | tar zxf - && \
-    curl -L https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | tar zxf - && \
     curl -L https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.19.tar.gz | tar zxf - && \
     cp mysql-connector-java-8.0.19/mysql-connector-java-8.0.19.jar ${HIVE_HOME}/lib/ && \
     rm -rf  mysql-connector-java-8.0.19
 
 RUN apt-get update && apt-get install -y netcat
+
+# COPY /opt/bitnami/scripts/postgresql/entrypoint.sh /entrypoint.sh
 
 RUN groupadd -r hive --gid=1000 && \
     useradd -r -g hive --uid=1000 -d ${HIVE_HOME} hive && \
@@ -59,6 +62,7 @@ RUN groupadd -r hive --gid=1000 && \
 USER hive
 EXPOSE 9083
 
+ENTRYPOINT ["sh", "-c", "/opt/bitnami/scripts/postgresql/entrypoint.sh"]
+
 USER 1001
-ENTRYPOINT [ "/opt/bitnami/scripts/postgresql/entrypoint.sh" ]
 CMD [ "/opt/bitnami/scripts/postgresql/run.sh" ]
