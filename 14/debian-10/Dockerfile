@@ -57,10 +57,15 @@ RUN curl http://apache.uvigo.es/hive/hive-standalone-metastore-3.0.0/hive-standa
 	&& ln -s /opt/apache-hive-metastore-3.0.0-bin /opt/hive-metastore
 
 # Download and install the mysql connector.
-RUN curl -L https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.47.tar.gz \
-	| tar xvz -C /opt/ \
-	&& ln -s /opt/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar /opt/hadoop/share/hadoop/common/lib/ \
-	&& ln -s /opt/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar /opt/hive-metastore/lib/
+# RUN curl -L https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.47.tar.gz \
+# 	| tar xvz -C /opt/ \
+# 	&& ln -s /opt/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar /opt/hadoop/share/hadoop/common/lib/ \
+# 	&& ln -s /opt/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar /opt/hive-metastore/lib/
+
+ENV PG_CONNECTOR_VERSION=42.3.6
+RUN curl -L https://jdbc.postgresql.org/download/postgresql-$PG_CONNECTOR_VERSION.jar --output /opt/postgresql-$PG_CONNECTOR_VERSION.jar \
+    && ln -s /opt/postgresql-$PG_CONNECTOR_VERSION.jar /opt/hadoop/share/hadoop/common/lib/ \
+    && ln -s /opt/postgresql-$PG_CONNECTOR_VERSION.jar /opt/hive-metastore/lib/ 
 
 EXPOSE 5432
 
@@ -71,6 +76,10 @@ RUN apt-get update && \
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
 RUN export JAVA_HOME
 
+ADD conf/metastore-log4j2.properties /opt/hive-metastore/conf
+ADD /rootfs/opt/bitnami/scripts/postgresql/entrypoint.sh /opt/hive-metastore/bin/entrypoint.sh
+RUN chmod 755 /opt/hive-metastore/bin/entrypoint.sh
+
+ENTRYPOINT [ "/opt/hive-metastore/bin/entrypoint.sh" ]
 USER 1001
-ENTRYPOINT [ "/opt/bitnami/scripts/postgresql/entrypoint.sh" ]
 CMD [ "/opt/bitnami/scripts/postgresql/run.sh" ]
