@@ -35,8 +35,48 @@ ENV APP_VERSION="14.3.0" \
 
 VOLUME [ "/bitnami/postgresql", "/docker-entrypoint-initdb.d", "/docker-entrypoint-preinitdb.d" ]
 
+# Modification to the Bitnami image to include hive-metastore-standalone
+ARG HADOOP_VERSION=3.2.0
+#Hive standalone
+RUN apt-get update && apt-get install -y curl --no-install-recommends \
+	&& rm -rf /var/lib/apt/lists/*
+RUN curl https://archive.apache.org/dist/hadoop/core/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz \
+	| tar xvz -C /opt/  \
+	&& ln -s /opt/hadoop-$HADOOP_VERSION /opt/hadoop \
+	&& rm -r /opt/hadoop/share/doc
+# Add S3a jars to the classpath using this hack.
+RUN ln -s /opt/hadoop/share/hadoop/tools/lib/hadoop-aws* /opt/hadoop/share/hadoop/common/lib/ && \
+    ln -s /opt/hadoop/share/hadoop/tools/lib/aws-java-sdk* /opt/hadoop/share/hadoop/common/lib/
+
+# Set necessary environment variables.
+ENV HADOOP_HOME="/opt/hadoop"
+ENV PATH="/opt/spark/bin:/opt/hadoop/bin:${PATH}"
+
+# Download and install the standalone metastore binary.
+RUN curl https://repo1.maven.org/maven2/org/apache/hive/hive-standalone-metastore/3.0.0/hive-standalone-metastore-3.0.0-bin.tar.gz \
+	| tar xvz -C /opt/ \
+	&& ln -s /opt/apache-hive-metastore-3.0.0-bin /opt/hive-metastore
+
+# Install the postgresql connector
+ENV PG_CONNECTOR_VERSION=42.3.6
+RUN curl -L https://jdbc.postgresql.org/download/postgresql-$PG_CONNECTOR_VERSION.jar --output /opt/postgresql-$PG_CONNECTOR_VERSION.jar \
+    && ln -s /opt/postgresql-$PG_CONNECTOR_VERSION.jar /opt/hadoop/share/hadoop/common/lib/ \
+    && ln -s /opt/postgresql-$PG_CONNECTOR_VERSION.jar /opt/hive-metastore/lib/ 
+
 EXPOSE 5432
 
-USER 1001
+# Install jdk 11 - needed for hadoop and hive
+RUN apt-get update && \
+    apt-get install -y openjdk-11-jdk ca-certificates-java && \
+    apt-get clean && \
+    update-ca-certificates -f
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
+RUN export JAVA_HOME
+
+
+RUN chmod 755 /opt/bitnami/scripts/postgresql/entrypoint.sh
+ENV PATH="/opt/apache-hive-metastore-3.0.0-bin/conf:$PATH"
 ENTRYPOINT [ "/opt/bitnami/scripts/postgresql/entrypoint.sh" ]
+
+EXPOSE 9083
 CMD [ "/opt/bitnami/scripts/postgresql/run.sh" ]
