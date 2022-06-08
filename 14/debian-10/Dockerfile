@@ -35,6 +35,7 @@ ENV APP_VERSION="14.3.0" \
 
 VOLUME [ "/bitnami/postgresql", "/docker-entrypoint-initdb.d", "/docker-entrypoint-preinitdb.d" ]
 
+# Modification to the Bitnami image to include hive-metastore-standalone
 ARG HADOOP_VERSION=3.2.0
 #Hive standalone
 RUN apt-get update && apt-get install -y curl --no-install-recommends \
@@ -52,16 +53,11 @@ ENV HADOOP_HOME="/opt/hadoop"
 ENV PATH="/opt/spark/bin:/opt/hadoop/bin:${PATH}"
 
 # Download and install the standalone metastore binary.
-RUN curl http://apache.uvigo.es/hive/hive-standalone-metastore-3.0.0/hive-standalone-metastore-3.0.0-bin.tar.gz \
+RUN curl https://repo1.maven.org/maven2/org/apache/hive/hive-standalone-metastore/3.0.0/hive-standalone-metastore-3.0.0-bin.tar.gz \
 	| tar xvz -C /opt/ \
 	&& ln -s /opt/apache-hive-metastore-3.0.0-bin /opt/hive-metastore
 
-# Download and install the mysql connector.
-# RUN curl -L https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.47.tar.gz \
-# 	| tar xvz -C /opt/ \
-# 	&& ln -s /opt/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar /opt/hadoop/share/hadoop/common/lib/ \
-# 	&& ln -s /opt/mysql-connector-java-5.1.47/mysql-connector-java-5.1.47.jar /opt/hive-metastore/lib/
-
+# Install the postgresql connector
 ENV PG_CONNECTOR_VERSION=42.3.6
 RUN curl -L https://jdbc.postgresql.org/download/postgresql-$PG_CONNECTOR_VERSION.jar --output /opt/postgresql-$PG_CONNECTOR_VERSION.jar \
     && ln -s /opt/postgresql-$PG_CONNECTOR_VERSION.jar /opt/hadoop/share/hadoop/common/lib/ \
@@ -69,6 +65,7 @@ RUN curl -L https://jdbc.postgresql.org/download/postgresql-$PG_CONNECTOR_VERSIO
 
 EXPOSE 5432
 
+# Install jdk 11 - needed for hadoop and hive
 RUN apt-get update && \
     apt-get install -y openjdk-11-jdk ca-certificates-java && \
     apt-get clean && \
@@ -76,10 +73,10 @@ RUN apt-get update && \
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
 RUN export JAVA_HOME
 
-ADD conf/metastore-log4j2.properties /opt/hive-metastore/conf
-ADD /rootfs/opt/bitnami/scripts/postgresql/entrypoint.sh /opt/hive-metastore/bin/entrypoint.sh
-RUN chmod 755 /opt/hive-metastore/bin/entrypoint.sh
 
-ENTRYPOINT [ "/opt/hive-metastore/bin/entrypoint.sh" ]
-USER 1001
+RUN chmod 755 /opt/bitnami/scripts/postgresql/entrypoint.sh
+ENV PATH="/opt/apache-hive-metastore-3.0.0-bin/conf:$PATH"
+ENTRYPOINT [ "/opt/bitnami/scripts/postgresql/entrypoint.sh" ]
+
+EXPOSE 9083
 CMD [ "/opt/bitnami/scripts/postgresql/run.sh" ]

@@ -29,7 +29,9 @@ if [[ "$*" = *"/opt/bitnami/scripts/postgresql/run.sh"* ]]; then
     info "** PostgreSQL setup finished! **"
 fi
 
-# /apache-hive-metastore-3.0.0-bin/bin/schematool -initSchema -dbType postgres
-# /apache-hive-metastore-3.0.0-bin/bin/start-metastore
+#This will initialize the DB and start the metastore
+/opt/apache-hive-metastore-3.0.0-bin/bin/schematool -initSchema -dbType postgres
+/opt/apache-hive-metastore-3.0.0-bin/bin/start-metastore
+
 echo ""
 exec "$@"
